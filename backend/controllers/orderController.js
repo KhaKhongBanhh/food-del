@@ -20,31 +20,35 @@ const placeOrder = async (req, res) => {
         await newOrder.save();
         await userModel.findByIdAndUpdate(req.body.userId, {cartData:{}});
 
-        const line_items = req.body.items.map((item) => ({
+        const line_items = req.body.items.map((item) => {
+            // Giả sử item.price đã là giá trị VND
+            return {
                 price_data: {
-                    currency: 'inr',
+                    currency: 'vnd',
                     product_data: {
                         name: item.name,
                     },
-                    unit_amount: item.price * 100 * 80,
+                    unit_amount: Math.round(item.price), // Làm tròn để đảm bảo là số nguyên
                 },
                 quantity: item.quantity,
-        }))
+            };
+        });
 
         line_items.push({
             price_data: {
-                currency: 'inr',
+                currency: 'vnd',
                 product_data: {
-                    name: 'Delivery Charges',
+                    name: 'Phí giao hàng',
                 },
-                unit_amount:2*  100 * 80,
+                unit_amount: 20000, // Ví dụ: Phí giao hàng 20.000 VND
             },
             quantity: 1,
         });
 
         const session = await stripe.checkout.sessions.create({
-            line_items:line_items,
+            line_items: line_items,
             mode: 'payment',
+            payment_method_types: ['card'],
             success_url: `${frontend_url}/verify?success=true&orderId=${newOrder._id}`,
             cancel_url: `${frontend_url}/verify?success=false&orderId=${newOrder._id}`,
         });
